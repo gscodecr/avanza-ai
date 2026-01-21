@@ -6,8 +6,51 @@ from pydantic import BaseModel
 import uvicorn
 import httpx
 import os
-import cloudscraper
+from curl_cffi import requests
 import asyncio
+
+# ... (keep existing imports except cloudscraper)
+
+# ... inside validate_cedula ...
+
+    # Proxy configuration
+    proxy_url = os.getenv("TSE_PROXY_URL")
+    # curl_cffi uses simple proxy string or dict
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
+    
+    if proxy_url:
+        print(f"Using proxy: {proxy_url}")
+
+    def scrape_tse():
+        # Use curl_cffi with browser impersonation
+        # Note: curl_cffi handles headers automatically when impersonating
+        
+        # Step 1: Visit home naturally
+        # requests.get(tse_url_home, impersonate="chrome110", proxies=proxies)
+        
+        # Step 2: POST request
+        response = requests.post(
+            tse_url_api, 
+            json=payload, 
+            proxies=proxies, 
+            impersonate="chrome110"
+        )
+        return response
+
+    try:
+        # Run blocking scraper in a thread
+        response = await asyncio.to_thread(scrape_tse)
+        
+        if response.status_code != 200:
+            print(f"DEBUG: TSE Error {response.status_code}")
+            print(f"DEBUG: Body: {response.text[:500]}")
+            # Raise exception manually since curl_cffi response object might differ slightly or we want custom handling
+            if response.status_code == 403:
+                 raise HTTPException(status_code=403, detail="Error 403: Bloqueado por Cloudflare")
+            raise HTTPException(status_code=response.status_code, detail=f"Error TSE: {response.status_code}")
+            
+        data = response.json()
+        return JSONResponse(content=data)
 
 app = FastAPI()
 
