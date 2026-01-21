@@ -62,25 +62,28 @@ async def validate_cedula(request: LoginRequest):
         # Step 1: Visit home naturally to get Cloudflare cookies
         # Using a newer fingerprint (Chrome 124)
         print("DEBUG: Visiting home page...")
-        requests.get(
-            tse_url_home, 
-            proxies=proxies,
-            impersonate="chrome124",
-            timeout=10
-        )
         
-        # Step 2: POST request with the payload
-        print("DEBUG: Posting to API...")
-        response = requests.post(
-            tse_url_api, 
-            json=payload, 
-            proxies=proxies, 
-            impersonate="chrome124",
-            timeout=15,
-            # Add Referer explicitly as some WAFs check it match the previous page
-            headers={"Referer": tse_url_home}
-        )
-        return response
+        # Use a Session to persist cookies between requests!
+        with requests.Session(impersonate="chrome124") as s:
+            s.proxies = proxies
+            
+            # 1. GET Home
+            resp_home = s.get(
+                tse_url_home, 
+                timeout=10
+            )
+            print(f"DEBUG: Home response {resp_home.status_code}")
+            print(f"DEBUG: Cookies after home: {s.cookies.get_dict()}")
+            
+            # 2. POST API
+            print("DEBUG: Posting to API...")
+            response = s.post(
+                tse_url_api, 
+                json=payload, 
+                timeout=15,
+                headers={"Referer": tse_url_home}
+            )
+            return response
 
     try:
         # Run blocking scraper in a thread to avoid blocking the event loop
