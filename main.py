@@ -35,12 +35,20 @@ async def validate_cedula(request: LoginRequest):
     tse_url_home = "https://www.tse.go.cr/dondevotar/"
     tse_url_api = "https://www.tse.go.cr/dondevotar/prRemoto.aspx/ObtenerDondeVotar"
     
-    headers = {
+    # Browser-like headers for visiting the site first
+    headers_visit = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+        "Upgrade-Insecure-Requests": "1"
+    }
+
+    # API headers for the actual validation
+    headers_api = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Content-Type": "application/json; charset=UTF-8",
         "Referer": "https://www.tse.go.cr/dondevotar/",
         "Origin": "https://www.tse.go.cr",
-        "Host": "www.tse.go.cr",
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "X-Requested-With": "XMLHttpRequest",
         "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"
@@ -54,14 +62,13 @@ async def validate_cedula(request: LoginRequest):
         print(f"Using proxy: {proxy_url}")
 
     try:
-        async with httpx.AsyncClient(timeout=15.0, proxies=proxies) as client:
-            # Step 1: Visit home to get cookies (ASP.NET_SessionId, etc)
-            # We don't strictly need the content, just the cookie jar update
-            await client.get(tse_url_home, headers=headers)
+        async with httpx.AsyncClient(timeout=15.0, proxies=proxies, follow_redirects=True) as client:
+            # Step 1: Visit home naturally to get cookies
+            await client.get(tse_url_home, headers=headers_visit)
             
-            # Step 2: Make the POST request with the session cookies
+            # Step 2: Make the POST request with API headers
             payload = {"numeroCedula": request.cedula}
-            response = await client.post(tse_url_api, json=payload, headers=headers)
+            response = await client.post(tse_url_api, json=payload, headers=headers_api)
             response.raise_for_status()
             
             data = response.json()
