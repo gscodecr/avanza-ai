@@ -8,6 +8,9 @@ import httpx
 import os
 from curl_cffi import requests
 import asyncio
+from datetime import datetime, timedelta
+import random
+import re
 
 app = FastAPI()
 
@@ -25,6 +28,61 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # URL del webhook de n8n
 N8N_WEBHOOK_URL = "https://gscode.app.n8n.cloud/webhook/ask"
+
+# --- MEJORA 1: SISTEMA DE CACHÉ ---
+CACHE_VALIDACIONES = {}
+CACHE_DURACION = timedelta(hours=24) # Guardar por 24 horas
+
+def get_cached_response(cedula):
+    if cedula in CACHE_VALIDACIONES:
+        entry = CACHE_VALIDACIONES[cedula]
+        if datetime.now() < entry["expires"]:
+            print(f"DEBUG: Cache hit for {cedula}")
+            return entry["data"]
+        else:
+            del CACHE_VALIDACIONES[cedula] # Expiró
+    return None
+
+def save_to_cache(cedula, data):
+    CACHE_VALIDACIONES[cedula] = {
+        "data": data,
+        "expires": datetime.now() + CACHE_DURACION
+    }
+
+# --- MEJORA 2: POOL DE PROXIES INTELIGENTE ---
+def get_random_proxy_config():
+    """
+    Analiza la URL del proxy actual y trata de rotar el usuario (Webshare)
+    para usar múltiples 'hilos' o sesiones diferentes.
+    """
+    base_url = os.getenv("TSE_PROXY_URL")
+    if not base_url:
+        return None
+        
+    # Detectar si es un proxy de Webshare con patrón numérico (ej: -401)
+    # Regex busca: (cualquier_cosa)-(numero)(:password...)
+    match = re.search(r"(.*-)(\d+)(:.*@.*)", base_url)
+    
+    if match:
+        prefix = match.group(1) # "http://user-cr-"
+        current_num = int(match.group(2)) # 401
+        suffix = match.group(3) # ":pass@host..."
+        
+        # Rotamos entre el usuario actual y 5 más (ej: 401 al 406) para distribuir carga
+        # Basado en tu screenshot que muestra del 401 en adelante
+        new_num = random.randint(401, 406) 
+        
+        new_proxy_url = f"{prefix}{new_num}{suffix}"
+        print(f"DEBUG: Using Proxy User #{new_num}")
+        return {"http": new_proxy_url, "https": new_proxy_url}
+        
+    # Si no tiene el patrón, usamos el original
+    return {"http": base_url, "https": base_url}
+
+# --- MEJORA 3: ROTACIÓN DE NAVEGADORES ---
+def get_random_impersonation():
+    # Alternar entre Chrome y Safari para parecer usuarios distintos
+    return random.choice(["chrome124", "safari15_5"])
 
 class ChatRequest(BaseModel):
     question: str
@@ -49,34 +107,37 @@ async def validate_cedula(request: LoginRequest):
     
     # Clean cedula
     cedula_limpia = request.cedula.replace("-", "").strip()
-    payload = {"numeroCedula": cedula_limpia}
-
-    # Proxy configuration
-    proxy_url = os.getenv("TSE_PROXY_URL")
-    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
     
-    if proxy_url:
-        print(f"Using proxy: {proxy_url}")
+    # 1. Check Cache first
+    cached_data = get_cached_response(cedula_limpia)
+    if cached_data:
+        return JSONResponse(content=cached_data)
+
+    payload = {"numeroCedula": cedula_limpia}
+    
+    # 2. Get Random Proxy from Pool
+    proxies = get_random_proxy_config()
+    
+    # 3. Get Random Browser Fingerprint
+    impersonation = get_random_impersonation()
 
     def scrape_tse():
-        # Step 1: Visit home naturally to get Cloudflare cookies
-        # Using a newer fingerprint (Chrome 124)
-        print("DEBUG: Visiting home page...")
+        print(f"DEBUG: Starting scrape with {impersonation}...")
         
-        # Use a Session to persist cookies between requests!
-        with requests.Session(impersonate="chrome124") as s:
+        with requests.Session(impersonate=impersonation) as s:
             s.proxies = proxies
             
-            # 1. GET Home
-            resp_home = s.get(
-                tse_url_home, 
-                timeout=10
-            )
-            print(f"DEBUG: Home response {resp_home.status_code}")
-            print(f"DEBUG: Cookies after home: {s.cookies.get_dict()}")
+            # GET Home (cookie set)
+            try:
+                s.get(tse_url_home, timeout=10)
+            except Exception as e:
+                print(f"Warning: Home visit failed ({e}), trying API directly...")
+
+            # Small human pause
+            import time
+            time.sleep(random.uniform(1.0, 3.0)) # Random pause 1-3s
             
-            # 2. POST API
-            print("DEBUG: Posting to API...")
+            # POST API
             response = s.post(
                 tse_url_api, 
                 json=payload, 
@@ -86,26 +147,27 @@ async def validate_cedula(request: LoginRequest):
             return response
 
     try:
-        # Run blocking scraper in a thread to avoid blocking the event loop
+        # Run in thread
         response = await asyncio.to_thread(scrape_tse)
         
         if response.status_code != 200:
             print(f"DEBUG: TSE Error {response.status_code}")
-            print(f"DEBUG: Body: {response.text[:500]}")
-            
             if response.status_code == 403:
-                 raise HTTPException(status_code=403, detail="Error 403: Bloqueado por Cloudflare")
-            
+                 raise HTTPException(status_code=403, detail="Error 403: Bloqueado por seguridad")
             response.raise_for_status()
             
         data = response.json()
+        
+        # Save success to cache
+        save_to_cache(cedula_limpia, data)
+        
         return JSONResponse(content=data)
 
     except Exception as e:
         print(f"Error validating cedula: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail="Error validando la cédula en el TSE")
+        raise HTTPException(status_code=500, detail="Error en validación TSE")
 
 
 @app.post("/api/chat", response_model=ChatResponse)
