@@ -113,14 +113,20 @@ Para asegurar tu sitio con HTTPS (el candado verde), necesitas un dominio (ej. `
    ```bash
    sudo certbot --nginx
    ```
-3. Certbot detectará tu configuración de Nginx, te pedirá tu correo y, lo más importante, qué dominios quieres asegurar.
-4. Al finalizar, tu sitio cargará automáticamente con HTTPS.
 
-### 5. Cómo Actualizar (Futuros Deploys)
+### 5. Configuración de Proxy (IMPORTANTE - Evitar Bloqueo TSE)
+El Tribunal Supremo de Elecciones (TSE) bloquea el tráfico proveniente de servidores en la nube como Amazon AWS (.com). Para que la validación de cédula funcione, debes usar un **Proxy Residencial**.
+
+1. Consigue un proxy residencial (ej. Webshare.io).
+2. Obtén tu URL de proxy: `http://usuario:clave@host:puerto`.
+3. Edita la configuración del servicio en tu servidor para agregar la variable `TSE_PROXY_URL`. (Ver sección de "Cómo Actualizar" para el comando exacto).
+
+### 6. Cómo Actualizar (Futuros Deploys)
 Cuando subas nuevos cambios a GitHub, actualiza tu servidor así:
 
 1. Conéctate via SSH a tu instancia.
-2. Ejecuta estos comandos:
+2. Si tu repo es privado, hazlo **Público** momentáneamente (o configura un Token).
+3. Ejecuta estos comandos:
    ```bash
    cd /home/ubuntu/app
    git pull
@@ -128,7 +134,8 @@ Cuando subas nuevos cambios a GitHub, actualiza tu servidor así:
    pip install -r requirements.txt
    sudo systemctl restart agente
    ```
-   *Tip: Si cambiaste algo en Nginx, usa `sudo systemctl restart nginx` también.*
+4. Vuelve a hacer tu repo **Privado**.
+
 
 ## Solución de Problemas
 Si no puedes acceder:
