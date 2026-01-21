@@ -1,6 +1,6 @@
 # Guía de Despliegue en AWS Lightsail
 
-Esta guía te ayudará a desplegar tu agente de IA en un servidor AWS Lightsail de manera rápida y sencilla.
+Esta guía te ayudará a desplazar tu agente de IA en un servidor AWS Lightsail de manera rápida y sencilla.
 
 ## Prerrequisitos
 - Una cuenta en AWS.
@@ -11,7 +11,7 @@ Esta guía te ayudará a desplegar tu agente de IA en un servidor AWS Lightsail 
 ### 1. Obtener la URL del Repositorio
 1. Ve a la página principal de tu repositorio en GitHub.
 2. Haz clic en el botón verde **Code**.
-3. Copia la URL HTTPS. (Ejemplo: `https://github.com/TU-USUARIO/codigofacilito-demo.git`).
+3. Copia la URL HTTPS. (Ejemplo: `https://github.com/TU-USUARIO/avanza-ai.git`).
 
 ### 2. Crear la Instancia en Lightsail
 1. Entra a la [Consola de AWS Lightsail](https://lightsail.aws.amazon.com/).
@@ -30,9 +30,10 @@ Esta guía te ayudará a desplegar tu agente de IA en un servidor AWS Lightsail 
 
 # 1. Actualizar e instalar dependencias del sistema
 apt-get update
-apt-get install -y python3-pip python3-venv git nginx
+# Agregamos certbot y python3-certbot-nginx para SSL
+apt-get install -y python3-pip python3-venv git nginx certbot python3-certbot-nginx
 
-# 2. Clorar el repositorio
+# 2. Clonar el repositorio
 # REEMPLAZA LA SIGUIENTE LINEA CON TU URL
 git clone https://github.com/TU-USUARIO/agente-avanza.git /home/ubuntu/app
 
@@ -100,6 +101,31 @@ systemctl restart nginx
 1. Espera unos minutos a que la instancia inicie y el script termine de ejecutarse.
 2. Copia la **IP Pública** de tu instancia desde la consola de Lightsail.
 3. Abre esa IP en tu navegador. Deberías ver tu aplicación funcionando.
+
+### 4. Configurar HTTPS (SSL Gratuito)
+Para asegurar tu sitio con HTTPS (el candado verde), necesitas un dominio (ej. `tuchat.com`) apuntando a la IP de tu instancia.
+
+1. Conéctate a la terminal SSH de tu instancia en Lightsail (ícono `>_`).
+2. Ejecuta el siguiente comando y sigue las instrucciones:
+   ```bash
+   sudo certbot --nginx
+   ```
+3. Certbot detectará tu configuración de Nginx, te pedirá tu correo y, lo más importante, qué dominios quieres asegurar.
+4. Al finalizar, tu sitio cargará automáticamente con HTTPS.
+
+### 5. Cómo Actualizar (Futuros Deploys)
+Cuando subas nuevos cambios a GitHub, actualiza tu servidor así:
+
+1. Conéctate via SSH a tu instancia.
+2. Ejecuta estos comandos:
+   ```bash
+   cd /home/ubuntu/app
+   git pull
+   source venv/bin/activate
+   pip install -r requirements.txt
+   sudo systemctl restart agente
+   ```
+   *Tip: Si cambiaste algo en Nginx, usa `sudo systemctl restart nginx` también.*
 
 ## Solución de Problemas
 Si no puedes acceder:
