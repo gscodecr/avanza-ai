@@ -59,14 +59,26 @@ async def validate_cedula(request: LoginRequest):
         print(f"Using proxy: {proxy_url}")
 
     def scrape_tse():
-        # Step 2: POST request using curl_cffi to impersonate Chrome
-        # Note: We skip the initial GET to home for speed, but if needed we can add it.
-        # curl_cffi handles TLS fingerprinting automatically with impersonate="..."
+        # Step 1: Visit home naturally to get Cloudflare cookies
+        # Using a newer fingerprint (Chrome 124)
+        print("DEBUG: Visiting home page...")
+        requests.get(
+            tse_url_home, 
+            proxies=proxies,
+            impersonate="chrome124",
+            timeout=10
+        )
+        
+        # Step 2: POST request with the payload
+        print("DEBUG: Posting to API...")
         response = requests.post(
             tse_url_api, 
             json=payload, 
             proxies=proxies, 
-            impersonate="chrome110"
+            impersonate="chrome124",
+            timeout=15,
+            # Add Referer explicitly as some WAFs check it match the previous page
+            headers={"Referer": tse_url_home}
         )
         return response
 
