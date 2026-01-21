@@ -5,6 +5,8 @@ from pydantic import BaseModel
 import uvicorn
 import httpx
 import os
+import cloudscraper
+import asyncio
 
 app = FastAPI()
 
