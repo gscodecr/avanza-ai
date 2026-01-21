@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chat Avanza</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="chat-header">
+            <div class="header-content">
+                <div class="back-button">
+                    <i class="fas fa-arrow-left"></i>
+                </div>
+                <div class="profile-info">
+                    <img src="/static/assets/icon.png" alt="Avatar" class="avatar">
+                    <div class="user-details">
+                        <h2>Candidato Avanza</h2>
+                        <span class="status">En línea</span>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <i class="fas fa-video"></i>
+                    <i class="fas fa-phone"></i>
+                    <i class="fas fa-ellipsis-v"></i>
+                </div>
+            </div>
+        </header>
+
+        <main class="chat-area" id="chat-area">
+            <div class="message-container received">
+                <div class="message-bubble">
+                    <p>¡Hola! 👋 Soy el asistente virtual del Partido Avanza. Estoy aquí para contarte sobre nuestras propuestas y responder tus dudas. ¿Qué te gustaría saber?</p>
+                    <span class="timestamp" id="initial-time"></span>
+                </div>
+            </div>
+        </main>
+
+        <footer class="chat-input-container">
+            <div class="input-wrapper">
+                <button class="icon-btn"><i class="far fa-smile"></i></button>
+                <input type="text" id="message-input" placeholder="Escribe un mensaje" autocomplete="off">
+                <button class="icon-btn"><i class="fas fa-paperclip"></i></button>
+            </div>
+            <button class="send-btn" id="send-btn">
+                <i class="fas fa-microphone" id="send-icon"></i>
+            </button>
+        </footer>
+    </div>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

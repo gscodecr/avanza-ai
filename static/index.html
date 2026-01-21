@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agente Avanza Chat</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <img src="/static/assets/logo.png" alt="Logo" class="party-logo">
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div id="user-info-panel" class="user-info-panel" style="display: none;">
+                <!-- User info will be injected here -->
+            </div>
+            <!-- Messages will appear here -->
+            <div class="message bot">
+                <img src="/static/assets/icon.png" alt="Bot" class="message-icon">
+                Hola, ¿Qué te gustaría saber de Avanza?
+            </div>
+
+            <div class="quick-replies">
+                <button class="quick-reply-btn">¿Cuáles son las propuestas?</button>
+                <button class="quick-reply-btn">¿Quién es el candidato?</button>
+                <button class="quick-reply-btn">¿Cómo puedo unirme?</button>
+            </div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" id="message-input" placeholder="Escribe un mensaje...">
+            <button id="send-button">Enviar</button>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="login-modal">
+        <div class="login-card">
+            <img src="/static/assets/logo.png" alt="Partido Avanza" class="login-logo">
+            <h2>Bienvenido</h2>
+            <p>Por favor, ingrese su número de cédula para continuar.</p>
+            <input type="text" id="cedula-input" placeholder="Ej: 206440798" maxlength="20">
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="no-cedula-checkbox">
+                <label for="no-cedula-checkbox">No tengo cédula</label>
+            </div>
+
+            <button id="login-button">Ingresar</button>
+            <p id="login-error" class="error-message"></p>
+        </div>
+    </div>
+
+    <!-- Loader Overlay -->
+    <div id="loader-overlay" class="loader-overlay" style="display: none;">
+        <img src="/static/assets/loader_icon.png" alt="Cargando..." class="loader-icon">
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+
+</html>
