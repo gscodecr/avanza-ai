@@ -54,24 +54,39 @@ async def validate_cedula(request: LoginRequest):
         "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"
     }
 
+import cloudscraper
+import asyncio
+
+# ... (keep existing imports if needed, but httpx might be removed if not used elsewhere)
+
+# ... inside the function ...
+
     # Proxy configuration
     proxy_url = os.getenv("TSE_PROXY_URL")
-    proxies = {"http://": proxy_url, "https://": proxy_url} if proxy_url else None
+    proxies = {"http": proxy_url, "https": proxy_url} if proxy_url else None
     
     if proxy_url:
         print(f"Using proxy: {proxy_url}")
 
+    def scrape_tse():
+        scraper = cloudscraper.create_scraper()
+        # Step 1: Visit home naturally
+        scraper.get(tse_url_home)
+        
+        # Step 2: POST request
+        response = scraper.post(tse_url_api, json=payload, proxies=proxies)
+        return response
+
     try:
-        async with httpx.AsyncClient(timeout=15.0, proxies=proxies, follow_redirects=True) as client:
-            # Step 1: Visit home naturally to get cookies
-            await client.get(tse_url_home, headers=headers_visit)
-            
-            # Step 2: Make the POST request with API headers
-            payload = {"numeroCedula": request.cedula}
-            response = await client.post(tse_url_api, json=payload, headers=headers_api)
+        # Run blocking scraper in a thread
+        response = await asyncio.to_thread(scrape_tse)
+        
+        if response.status_code != 200:
+            print(f"DEBUG: TSE Error {response.status_code}")
+            print(f"DEBUG: Body: {response.text[:500]}")
             response.raise_for_status()
             
-            data = response.json()
+        data = response.json()
             # The API usually returns implicit JSON d: {...} or similar structure depending on ASP.NET version
             # Let's return exactly what it sends for now so frontend can parse
             return JSONResponse(content=data)
