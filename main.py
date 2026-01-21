@@ -46,8 +46,15 @@ async def validate_cedula(request: LoginRequest):
         "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"
     }
 
+    # Proxy configuration
+    proxy_url = os.getenv("TSE_PROXY_URL")
+    proxies = {"http://": proxy_url, "https://": proxy_url} if proxy_url else None
+    
+    if proxy_url:
+        print(f"Using proxy: {proxy_url}")
+
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=15.0, proxies=proxies) as client:
             # Step 1: Visit home to get cookies (ASP.NET_SessionId, etc)
             # We don't strictly need the content, just the cookie jar update
             await client.get(tse_url_home, headers=headers)

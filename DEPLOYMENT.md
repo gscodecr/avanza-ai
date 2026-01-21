@@ -59,6 +59,9 @@ WorkingDirectory=/home/ubuntu/app
 Environment="PATH=/home/ubuntu/app/venv/bin"
 # Configuración de entorno (Opcional, si main.py lo requiere)
 Environment="N8N_WEBHOOK_URL=https://gscode.app.n8n.cloud/webhook/ask"
+# Proxy Residencial (Opcional, pero necesario si TSE bloquea AWS)
+# IMPORTANTE: Reemplaza esto con tu URL de proxy real (ej. http://user:pass@host:port)
+Environment="TSE_PROXY_URL=http://tu-proxy-aqui"
 ExecStart=/home/ubuntu/app/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --forwarded-allow-ips '*'
 Restart=always
 
