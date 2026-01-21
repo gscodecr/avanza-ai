@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import httpx
@@ -9,6 +10,15 @@ import cloudscraper
 import asyncio
 
 app = FastAPI()
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Serve static files (HTML, CSS, JS)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -37,31 +47,9 @@ async def validate_cedula(request: LoginRequest):
     tse_url_home = "https://www.tse.go.cr/dondevotar/"
     tse_url_api = "https://www.tse.go.cr/dondevotar/prRemoto.aspx/ObtenerDondeVotar"
     
-    # Browser-like headers for visiting the site first
-    headers_visit = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
-        "Upgrade-Insecure-Requests": "1"
-    }
-
-    # API headers for the actual validation
-    headers_api = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Content-Type": "application/json; charset=UTF-8",
-        "Referer": "https://www.tse.go.cr/dondevotar/",
-        "Origin": "https://www.tse.go.cr",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept-Language": "es-ES,es;q=0.9,en;q=0.8"
-    }
-
-import cloudscraper
-import asyncio
-
-# ... (keep existing imports if needed, but httpx might be removed if not used elsewhere)
-
-# ... inside the function ...
+    # Clean cedula
+    cedula_limpia = request.cedula.replace("-", "").strip()
+    payload = {"numeroCedula": cedula_limpia}
 
     # Proxy configuration
     proxy_url = os.getenv("TSE_PROXY_URL")
@@ -71,16 +59,18 @@ import asyncio
         print(f"Using proxy: {proxy_url}")
 
     def scrape_tse():
+        # Create a CloudScraper instance to bypass Cloudflare
         scraper = cloudscraper.create_scraper()
-        # Step 1: Visit home naturally
+        
+        # Step 1: Visit home naturally to establish session/cookies
         scraper.get(tse_url_home)
         
-        # Step 2: POST request
+        # Step 2: POST request with the payload
         response = scraper.post(tse_url_api, json=payload, proxies=proxies)
         return response
 
     try:
-        # Run blocking scraper in a thread
+        # Run blocking scraper in a thread to avoid blocking the event loop
         response = await asyncio.to_thread(scrape_tse)
         
         if response.status_code != 200:
@@ -89,9 +79,7 @@ import asyncio
             response.raise_for_status()
             
         data = response.json()
-            # The API usually returns implicit JSON d: {...} or similar structure depending on ASP.NET version
-            # Let's return exactly what it sends for now so frontend can parse
-            return JSONResponse(content=data)
+        return JSONResponse(content=data)
 
     except Exception as e:
         print(f"Error validating cedula: {e}")
@@ -140,16 +128,6 @@ async def chat_endpoint(request: ChatRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
-
-# CORS middleware (optional for local dev but good practice as per user request)
-from fastapi.middleware.cors import CORSMiddleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
