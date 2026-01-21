@@ -12,7 +12,88 @@ from datetime import datetime, timedelta
 import random
 import re
 
+import csv
+
+# ... (previous imports)
+
+# --- MEJORA 4: LOGGING DE USUARIOS ÚNICOS ---
+LOG_FILE = "usuarios_unicos.csv"
+LOGGED_USERS = set()
+
+def load_logged_users():
+    """Carga los usuarios existentes al iniciar para no duplicarlos"""
+    if not os.path.exists(LOG_FILE):
+        # Crear archivo con cabeceras si no existe
+        with open(LOG_FILE, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Fecha", "Hora", "Cedula", "Nombre", "Origen"])
+        return
+
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None) # Saltar cabecera
+            for row in reader:
+                if row:
+                    LOGGED_USERS.add(row[2]) # La columna 2 es la cédula
+        print(f"DEBUG: Loaded {len(LOGGED_USERS)} unique users from log.")
+    except Exception as e:
+        print(f"Error loading log file: {e}")
+
+def log_unique_user(cedula, data, source="TSE"):
+    if cedula in LOGGED_USERS:
+        return # Ya existe, no hacemos nada
+
+    try:
+        nombre = data.get("n", "Desconocido") # TSE suele devolver 'n' como nombre o similar
+        # Intentar extraer nombre más limpio si la estructura varía
+        # Ajustar según la respuesta real del TSE
+            
+        now = datetime.now()
+        with open(LOG_FILE, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                now.strftime("%Y-%m-%d"),
+                now.strftime("%H:%M:%S"),
+                cedula,
+                nombre,
+                source
+            ])
+        
+        LOGGED_USERS.add(cedula)
+        print(f"DEBUG: New unique user logged: {cedula}")
+    except Exception as e:
+        print(f"Error logging user: {e}")
+
+# --- MEJORA 5: LOGGING DE CHAT ---
+CHAT_LOG_FILE = "historial_chat.csv"
+
+def log_chat_message(session_id, question, answer):
+    """Guarda la conversación para análisis"""
+    if not os.path.exists(CHAT_LOG_FILE):
+        with open(CHAT_LOG_FILE, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Fecha", "Hora", "SessionID", "Pregunta", "Respuesta"])
+
+    try:
+        now = datetime.now()
+        with open(CHAT_LOG_FILE, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                now.strftime("%Y-%m-%d"),
+                now.strftime("%H:%M:%S"),
+                session_id,
+                question,
+                answer
+            ])
+    except Exception as e:
+        print(f"Error logging chat: {e}")
+
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    load_logged_users()
 
 # CORS middleware
 app.add_middleware(
@@ -111,6 +192,10 @@ async def validate_cedula(request: LoginRequest):
     # 1. Check Cache first
     cached_data = get_cached_response(cedula_limpia)
     if cached_data:
+        # También registramos si viene del caché, por si es la primera vez que inicia el servidor 
+        # y el caché estaba en memoria (aunque el caché se borra al reiniciar, el log persiste).
+        # La función log_unique_user ya comprueba si existe en el CSV, así que es seguro llamar aquí.
+        log_unique_user(cedula_limpia, cached_data, source="Cache")
         return JSONResponse(content=cached_data)
 
     payload = {"numeroCedula": cedula_limpia}
@@ -160,6 +245,8 @@ async def validate_cedula(request: LoginRequest):
         
         # Save success to cache
         save_to_cache(cedula_limpia, data)
+        # Log unique user (This was missing!)
+        log_unique_user(cedula_limpia, data, source="TSE")
         
         return JSONResponse(content=data)
 
@@ -192,8 +279,13 @@ async def chat_endpoint(request: ChatRequest):
             
             # Mapeamos la respuesta de n8n al formato esperado por el frontend
             # Asumimos que n8n devuelve { "output": "respuesta..." } o similar
+            final_answer = n8n_data.get("answer") or n8n_data.get("output") or "No se recibió respuesta"
+            
+            # Log the conversation
+            log_chat_message(request.session_id, request.question, final_answer)
+
             return ChatResponse(
-                answer=n8n_data.get("answer") or n8n_data.get("output") or "No se recibió respuesta",
+                answer=final_answer,
                 session_id=request.session_id
             )
             
