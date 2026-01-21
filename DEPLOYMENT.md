@@ -59,7 +59,7 @@ WorkingDirectory=/home/ubuntu/app
 Environment="PATH=/home/ubuntu/app/venv/bin"
 # Configuración de entorno (Opcional, si main.py lo requiere)
 Environment="N8N_WEBHOOK_URL=https://gscode.app.n8n.cloud/webhook/ask"
-ExecStart=/home/ubuntu/app/venv/bin/fastapi run main.py --port 8000
+ExecStart=/home/ubuntu/app/venv/bin/uvicorn main:app --host 127.0.0.1 --port 8000 --forwarded-allow-ips '*'
 Restart=always
 
 [Install]
