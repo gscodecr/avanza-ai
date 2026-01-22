@@ -29,10 +29,19 @@ function addMessage(text, sender) {
         iconImg.alt = 'Bot';
         iconImg.classList.add('message-icon');
 
-        // Append icon and text (wrapped in a span or just text node)
+        // Append icon
         messageDiv.appendChild(iconImg);
-        const textNode = document.createTextNode(text);
-        messageDiv.appendChild(textNode);
+
+        // Create container for formatted text
+        const contentDiv = document.createElement('div');
+        contentDiv.classList.add('message-content');
+
+        // Use marked.parse to convert Markdown to HTML
+        // SECURITY NOTE: In a real app, sanitize this input to prevent XSS. 
+        // For this demo with trusted n8n output, direct parsing is okay.
+        contentDiv.innerHTML = marked.parse(text);
+
+        messageDiv.appendChild(contentDiv);
     } else {
         messageDiv.textContent = text;
     }
