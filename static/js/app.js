@@ -192,6 +192,13 @@ async function handleLogin() {
         return;
     }
 
+    // Validar formato de 9 dígitos (ignorando guiones o espacios)
+    const cedulaLimpia = cedula.replace(/[^0-9]/g, '');
+    if (cedulaLimpia.length !== 9) {
+        loginError.textContent = 'La cédula debe tener 9 dígitos (Ej: 206440798).';
+        return;
+    }
+
     const originalBtnText = loginButton.textContent;
     loginButton.textContent = 'Verificando...';
     loginButton.disabled = true;
