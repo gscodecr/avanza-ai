@@ -9,3 +9,5 @@ venv/
 
 # MacOS
 .DS_Store
+
+*.csv
